@@ -1,0 +1,15 @@
+bd166a21ff733aced28a88ea565af471 *DESCRIPTION
+2459df11cbe3de0af637235e5db2d36f *NAMESPACE
+f7449c0bd6740ddee7637319221515b7 *NEWS.md
+9bcbda43402bde4e977e285c4ce4ec07 *R/algorithms.R
+ba77bac504fb4f6119557876429d736d *R/utils.R
+e45b5dfd8cf561a34134cf28626236fd *R/zoomgrid.R
+910bddc410539890ffc0dd393f656816 *build/vignette.rds
+31d9fb96e0b9a5c9f494e2fc095e3a7a *inst/doc/zoomgrid-vignette.R
+23d452736a00f8af898918856e8a3d53 *inst/doc/zoomgrid-vignette.Rmd
+4060939b446a499bf2422db04b5f9539 *inst/doc/zoomgrid-vignette.html
+b5c8ea426d293eaec19ef4888d30daa0 *man/build_grid.Rd
+2f1609813b02f1c5f6a1383029794071 *man/grid_search.Rd
+866c2fbbc99f8b5b5fc6901c664f400e *man/grid_search_check.Rd
+bf053f939c25e53891e69c582170d252 *man/zoomgrid.Rd
+23d452736a00f8af898918856e8a3d53 *vignettes/zoomgrid-vignette.Rmd
