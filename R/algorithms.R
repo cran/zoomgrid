@@ -6,10 +6,10 @@
 #'
 #' This function builds the grid for the grid search algorithm with a zoom.
 #'
-#' The argument \code{...} is a sequence of vectors or lists contatining the information about the grid to be built.
+#' The argument \code{...} is a sequence of vectors or lists containing the information about the grid to be built.
 #' Each element in the sequence is either a vector or a list taking one of the following forms
 #'
-#' - \code{x}, if \code{x} is already an sequence of the grid points for the corresponding argument.
+#' - \code{x}, if \code{x} is already a sequence of the grid points for the corresponding argument.
 #'
 #' - \code{c(from=, to=, by=)}
 #'
@@ -37,7 +37,7 @@
 #' to interpolate more points at some region without considering to sort it all the time.
 #'
 #' When \code{by} is provided, the \code{length} will be ignored.
-#' So if the user wanna specify the \code{length}, please do not use \code{by}.
+#' So if the user want to specify the \code{length}, please do not use \code{by}.
 #'
 #' The order of the sequence \code{...} matters as it represents the order of the corresponding arguments of the target function to be optimized.
 #'
@@ -59,70 +59,90 @@
 #' build_grid(vx, c(from=1, to=2, by=.2), list(from=3, to=4, length=5))
 #'
 #' @export
-build_grid <- function(...){
-  args = list(...)
-  ret = list()
-
-  grid_base = list(); iter = 1
-  for(arg in args){
-    if(is.null(arg)) next
-
-    if(is.list(arg)){
-      nfrom = arg$from; if(is.null(nfrom)) next
-      nto = arg$to; if(is.null(nto)) next
-      if(nfrom > nto)
-        stop(simpleError("'from' is bigger than 'to'! Please check what you have input..."))
-
-      nby = arg$by
-      if(!is.null(nby)){
-        if(nby <= 0) stop(simpleError("'by' is not positive..."))
-
-        # with from, to, by
-        tmp = seq(from=nfrom, to=nto, by=nby)
-      }else{
-        nlength = arg$length; if(is.null(nlength)) next
-        if(nlength <= 0) stop(simpleError("'length' is not positive..."))
-
-        # with from, to, length
-        tmp = seq(from=nfrom, to=nto, length.out=nlength)
+build_grid <- function(...) {
+  args <- list(...)
+  ret  <- list()
+  
+  grid_base <- list()
+  iter <- 1L
+  
+  abort_from_to <- function(from, to) {
+    if (from > to) {
+      cli::cli_abort(
+        "'from' ({from}) is bigger than 'to' ({to}). Please check your input."
+      )
+    }
+    invisible(NULL)
+  }
+  
+  abort_positive <- function(x, name) {
+    if (!is.numeric(x) || length(x) != 1L || is.na(x) || x <= 0) {
+      cli::cli_abort("'{name}' must be a positive number. Got: {x}.")
+    }
+    invisible(NULL)
+  }
+  
+  for (arg in args) {
+    if (is.null(arg)) next
+    
+    tmp <- NULL
+    
+    if (is.list(arg)) {
+      nfrom <- arg$from; if (is.null(nfrom)) next
+      nto   <- arg$to;   if (is.null(nto))   next
+      
+      abort_from_to(nfrom, nto)
+      
+      nby <- arg$by
+      if (!is.null(nby)) {
+        abort_positive(nby, "by")
+        tmp <- seq(from = nfrom, to = nto, by = nby)
+      } else {
+        nlength <- arg$length; if (is.null(nlength)) next
+        abort_positive(nlength, "length")
+        tmp <- seq(from = nfrom, to = nto, length.out = nlength)
       }
-    }else if(is.vector(arg)){
-      if(!is.numeric(arg)) next
-
-      nfrom = arg["from"]
-      if(is.na(nfrom)){
+      
+    } else if (is.vector(arg)) {
+      if (!is.numeric(arg)) next
+      
+      nfrom <- unname(arg["from"])
+      
+      if (is.na(nfrom)) {
         # x case
-        tmp = sort(arg)
-      }else{
-        nto = arg["to"]; if(is.na(nto)) next
-        if(nfrom > nto)
-          stop(simpleError("'from' is bigger than 'to'! Please check what you have input..."))
-
-        nby = arg["by"]
-        if(!is.na(nby)){
-          if(nby <= 0) stop(simpleError("'by' is not positive..."))
-
-          # with from, to, by
-          tmp = seq(from=nfrom, to=nto, by=nby)
-        }else{
-          nlength = arg["length"]; if(is.na(nlength)) next
-          if(nlength <= 0) stop(simpleError("'length' is not positive..."))
-
-          # with from, to, length
-          tmp = seq(from=nfrom, to=nto, length.out=nlength)
+        tmp <- sort(arg)
+      } else {
+        nto <- unname(arg["to"])
+        if (is.na(nto)) next
+        
+        abort_from_to(nfrom, nto)
+        
+        nby <- unname(arg["by"])
+        if (!is.na(nby)) {
+          abort_positive(nby, "by")
+          tmp <- seq(from = nfrom, to = nto, by = nby)
+        } else {
+          nlength <- unname(arg["length"])
+          if (is.na(nlength)) next
+          abort_positive(nlength, "length")
+          tmp <- seq(from = nfrom, to = nto, length.out = nlength)
         }
       }
-    }else next
-
-    grid_base[[iter]] = tmp; iter = iter+1
+      
+    } else {
+      next
+    }
+    
+    grid_base[[iter]] <- tmp
+    iter <- iter + 1L
   }
-
-  ret$grid = expand.grid(grid_base, KEEP.OUT.ATTRS=FALSE)
-  ret$grid_base = grid_base
-  ret$size = nrow(ret$grid)
-  ret$npar = length(grid_base)
-  class(ret) = "GRID"
-  return(ret)
+  
+  ret$grid      <- expand.grid(grid_base, KEEP.OUT.ATTRS = FALSE)
+  ret$grid_base <- grid_base
+  ret$size      <- nrow(ret$grid)
+  ret$npar      <- length(grid_base)
+  class(ret)    <- "GRID"
+  ret
 }
 
 
@@ -130,61 +150,57 @@ build_grid <- function(...){
 #'
 #' This function carries out the grid search algorithm with a zoom.
 #'
-#' The target function \code{FUN} to be minimized is a scalar real valued function with multiple arguments.
-#' The maximization can be achieved by multiplying -1 to the original function,
-#' and then input the new function to \code{FUN}.
+#' The target function \code{FUN} to be minimized is a scalar real-valued function.
+#' Maximization can be achieved by multiplying \code{-1} to the original function
+#' and then passing the new function to \code{FUN}.
 #'
-#' The \code{grid} must be created by using the function \code{\link{build_grid}} function in the package.
+#' The \code{grid} must be created by \code{\link{build_grid}}.
 #'
-#' Any other invariant arugments to the function \code{FUN} can be specified in \code{MoreArgs} by using a list with variable names.
+#' Any other invariant arguments to \code{FUN} can be specified in \code{MoreArgs}
+#' using a named list, see \code{\link{mapply}}.
 #'
-#' The common grid search first build a grid within some bounded area.
-#' And then the target function will be evaluated at each point in the grid.
-#' The points that produce the smallest \code{num} target function values shall be returned.
+#' The common grid search first builds a grid within a bounded region, evaluates \code{FUN}
+#' at each grid point, and returns the \code{num} points that yield the smallest values.
 #'
-#' \code{zoom = 0} implies that no zoom-in will be applied and the corresponding grid search is the common one introduced above,
-#' while any integer \code{zoom > 0} implies that the zoom-in will be applied in the grid search.
-#' When a grid search with a zoom is applied, \code{zoom > 0} is actually the number of rounds or layers of the algorithm,
-#' and therefore the grid search algorithm with a zoom consists of
-#' \deqn{ n^{0} + n^{1} + n^{2} + ... + n^{z}   }
-#' grid searches, where \eqn{n} = \code{num} and \eqn{z} = \code{zoom}.
+#' \code{zoom = 0} implies no zoom-in (a single grid search). Any integer \code{zoom > 0}
+#' applies additional zoom-in layers. With \code{zoom > 0}, the algorithm performs
+#' \deqn{ n^{0} + n^{1} + n^{2} + \cdots + n^{z} }
+#' grid searches, where \eqn{n} is \code{num} and \eqn{z} is \code{zoom}.
+#' Consequently, the total number of returned points is
+#' \deqn{ n^{1} + n^{2} + n^{3} + \cdots + n^{z+1} }.
 #'
-#' As mentioned above, in each grid search, \code{num} is the number of points that will be returned.
-#' And therefore, in the end, there will be
-#' \deqn{ n^{1} + n^{2} + n^{3} + ... + n^{z+1}   }
-#' points returned, where \eqn{n} = \code{num} and \eqn{z} = \code{zoom}.
+#' At each zoom-in layer, the algorithm builds subgrids around the best points found
+#' in the previous layer. To limit the computational burden, the subgrid size is reduced
+#' by the decay rate \code{decay}. For each parameter, the number of points in the subgrid is
+#' \code{max(Int(decay * N), 3)}, where \code{N} is the number of points in the original grid
+#' for that parameter.
 #'
-#' Each time when the algorithm zooms in, it will automatically build subgrids
-#' based on the points that have been found in the super gird search.
-#' Due to the exhaustive property of the grid search algorithm,
-#' it is desirable to make fewer points in the subgrid.
-#' The decay rate \code{decay} provides the opportunity to control the number of points in the subgrids.
-#' The number of points for each argument of the target function in the subgrid will be
-#' \code{max} [ \code{Int} (\code{decay} \eqn{*} \eqn{N}), 3 ].
+#' Parallel computation can be enabled by setting \code{parallel = TRUE}. In that case,
+#' the function uses the \pkg{future} framework with \code{future::multisession}
+#' (cross-platform). The number of workers is determined as follows:
+#' \enumerate{
+#'   \item Let \eqn{n} be the value returned by \code{future::availableCores()}.
+#'   \item Let \eqn{m} be the user input \code{cores}. If \code{cores = NULL}, set \eqn{m = 2}.
+#'   \item The number of workers is \eqn{\min(m, n)}.
+#' }
+#' If \code{parallel = TRUE}, the packages \pkg{future} and \pkg{future.apply} must be installed.
 #'
-#' Parallel computation is implemented in the function, which can be activated by setting \code{parallel = TRUE}.
-#'
-#' \code{cores}, which represents the number of cores, works only when \code{parallel = TRUE}.
-#' By default \code{cores=NULL} implies that the function will detect the number of cores and use it.
-#'
-#' The boolean \code{silent} controls if there will be output in the console.
-#'
+#' The boolean \code{silent} controls whether progress information is printed to the console.
 #'
 #' @param FUN the target function to be minimized.
-#' @param grid an object of the class GRID from \code{\link{build_grid}}.
-#' @param MoreArgs a list of other arguments to \code{FUN}, see \code{\link{mapply}}.
-#' @param zoom number of (additional) rounds or layers of the zoom-in, 0 by default.
-#' @param decay a number in between 0 and 1 representing the decay rate of the grid sizes of the zoom.
-#' @param num number of points to return, i.e. the smallest \code{num} points, 1 by default the minimum.
-#' @param parallel a boolean indicating if the parallel computation is carried out, by default \code{FALSE}.
-#' @param cores The number of cores to use, i.e. at most how many child processes will be run simultaneously. For details, see \code{mcmapply} in \code{parallel} package.
-#' @param silent a boolean indicating if the information regarding the omputation is printed.
+#' @param grid an object of class \code{GRID} created by \code{\link{build_grid}}.
+#' @param MoreArgs a named list of additional arguments to \code{FUN}, see \code{\link{mapply}}.
+#' @param zoom number of (additional) zoom-in layers, \code{0} by default.
+#' @param decay a number in \eqn{(0,1)} controlling the decay of subgrid sizes.
+#' @param num number of points to return at each grid search, \code{1} by default.
+#' @param parallel a logical; if \code{TRUE}, parallel computation is used.
+#' @param cores an integer specifying the requested number of workers when \code{parallel = TRUE}.
+#'   If \code{NULL}, the function uses \code{2} workers by default (subject to \code{future::availableCores()}).
+#' @param silent a logical indicating whether progress information is printed.
 #'
-#' @return a list containing the results from the grid search with a zoom.
-#'
-#' The list contains the following components:
+#' @return a list with components:
 #' \item{par}{the approximate global minimizer}
-#' \item{points}{all the local minimizer points found by the grid search with a zoom}
+#' \item{points}{all candidate points found by the grid search with zoom-in layers}
 #'
 #' @author Yukai Yang, \email{yukai.yang@@statistik.uu.se}
 #' @seealso \code{\link{build_grid}}, \code{\link{grid_search_check}}
@@ -192,127 +208,147 @@ build_grid <- function(...){
 #'
 #' @examples
 #' # Rastrigin function
-#' ndim = 2 # number of dimension
-#' nA = 10 # parameter A
-#' # vx in [-5.12, 5.12]
+#' ndim = 2
+#' nA = 10
+#' Rastrigin <- function(vx) nA * ndim + sum(vx * vx - nA * cos(2 * pi * vx))
 #'
-#' # minimizer = rep(0, ndim)
-#' # minimum = 0
-#' Rastrigin <- function(vx) return(nA * ndim + sum(vx*vx - nA * cos(2*pi*vx)))
+#' # Build a grid
+#' bin = c(from = -5.12, to = 5.12, by = .5)
+#' grid = build_grid(bin, bin)
 #'
-#' \donttest{
-#' # set seed and initialize the initial or starting value
-#' set.seed(1)
-#' par = runif(ndim, -5.12, 5.12)
-#' cat("start from", par)
-#'
-#' # results from different optimization algorithms
-#' optim(par = par, Rastrigin, method='Nelder-Mead')
-#' optim(par = par, Rastrigin, method='BFGS')
-#' optim(par = par, Rastrigin, method='L-BFGS-B')
-#' optim(par = par, Rastrigin, method='SANN')
-#' }
-#'
-#' # a toy example
-#' # build the grid first
-#' bin = c(from=-5.12, to=5.12, by=.5)
-#' grid = build_grid(bin,bin)
-#' # so this is a relatively sparse grid
-#'
-#' # serial computation
-#' ret0 = grid_search(Rastrigin, grid, silent=FALSE)
+#' # Serial computation
+#' ret0 = grid_search(Rastrigin, grid, silent = FALSE)
 #' ret0$par
 #'
 #' \donttest{
+#' # Finer grid
+#' bin = c(from = -5.12, to = 5.12, by = .1)
+#' grid = build_grid(bin, bin)
 #'
-#' # We can build a finer grid
-#' bin = c(from=-5.12, to=5.12, by=.1)
-#' grid = build_grid(bin,bin)
-#'
-#' # serial computation
-#' ret1 = grid_search(Rastrigin, grid, silent=FALSE)
+#' # Serial computation
+#' ret1 = grid_search(Rastrigin, grid, silent = FALSE)
 #' ret1$par
 #'
-#' # parallel computation
-#' ret2 = grid_search(Rastrigin, grid, num=2, parallel=TRUE, silent=FALSE)
+#' # Parallel computation (requires future and future.apply)
+#' ret2 = grid_search(Rastrigin, grid, num = 2, parallel = TRUE, cores = 2, silent = FALSE)
 #' ret2$par
 #'
-#' # grid search with a zoom!
-#' ret3 = grid_search(Rastrigin, grid, zoom=2, num=2, parallel=TRUE, silent=FALSE)
+#' # Grid search with zoom-in layers
+#' ret3 = grid_search(Rastrigin, grid, zoom = 2, num = 2, parallel = TRUE, cores = 2, silent = FALSE)
 #' ret3$par
 #' }
 #'
 #' @export
-grid_search <- function(FUN, grid, MoreArgs=NULL, zoom=0, decay=0.5, num=1, parallel=FALSE, cores=NULL, silent=TRUE){
-  if(class(grid)!="GRID")
-    stop(simpleError("The argument 'grid' is not an object of class 'GRID'."))
-
-  if(!silent){
-    cat0(paste0(rep("#",getOption("width")),collapse=''))
-    cat0("zoomgrid version ",vnum," ",packname)
-    cat0(paste0(rep("-",getOption("width")),collapse=''))
+grid_search <- function(FUN, grid, MoreArgs = NULL, zoom = 0, decay = 0.5, num = 1,
+                        parallel = FALSE, cores = NULL, silent = TRUE) {
+  
+  if (!inherits(grid, "GRID")) {
+    cli::cli_abort("The argument {.arg grid} is not an object of class {.cls GRID}.")
   }
-
-  # tmp = split(grid$grid, seq_len(grid$size))
-
-  if(is.null(cores)){
-    cores = parallel::detectCores()
-    if(is.na(cores)){
-      if(!silent) cat0("No cores are detected! Anyway, let's use one core...")
-      parallel=FALSE
+  
+  if (!silent) {
+    cli::cli_h1("zoomgrid version {vnum} {packname}")
+  }
+  
+  # Decide evaluation function and (optionally) configure futures once at the top level
+  if (parallel) {
+    
+    # Ensure optional parallel backend is available (future is in Suggests)
+    if (!requireNamespace("future", quietly = TRUE) ||
+        !requireNamespace("future.apply", quietly = TRUE)) {
+      cli::cli_abort(
+        "Parallel execution requires packages {.pkg future} and {.pkg future.apply}."
+      )
     }
+    
+    # Detect available cores once via future
+    n <- future::availableCores()
+    
+    # User-requested cores: if NULL, default to 2
+    m <- cores
+    if (is.null(m)) m <- 2L
+    
+    # Validate m
+    if (!is.numeric(m) || length(m) != 1L || is.na(m) || m < 1) {
+      m <- 1L
+    } else {
+      m <- as.integer(m)
+    }
+    
+    # Choose workers as min(m, n)
+    cores <- min(m, as.integer(n))
+    if (is.na(cores) || cores < 1L) cores <- 1L
+    
+    # Set multisession workers once and restore user's plan on exit
+    old_plan <- future::plan()
+    on.exit(future::plan(old_plan), add = TRUE)
+    future::plan(future::multisession, workers = cores)
+    
+    ftmp <- grid_peval
+    if (!silent) {
+      cli::cli_alert_info("Parallel computation runs with {cores} worker{?s}.")
+    }
+  } else {
+    ftmp <- grid_seval
   }
-
-  if(parallel){
-    ftmp = grid_peval
-    if(!silent) cat0("Parallel computation runs with ",cores," cores.")
-  }else ftmp = grid_seval
-
-  if(!silent) ptm = proc.time()
-
-  ret = recursive_search(ftmp=ftmp,FUN=FUN,grid=grid,MoreArgs=MoreArgs,zoom=zoom,decay=decay,num=num,cores=cores)
-
-  if(!silent) cat0("The Grid Search of ",zoom," zoom-in layers with ",num," points each gives ",length(ret), " results.")
-  par = ftmp(FUN=FUN,grid=ret,MoreArgs=MoreArgs,num=1,cores=cores)[[1]]
-  if(!silent) cat0("The minimizer is believed to be in the neighbourhood of ",par,".")
-
-  if(!silent){
-    cat0(paste0(rep("-",getOption("width")),collapse=''))
-    print(proc.time() - ptm)
-    cat0(paste0(rep("#",getOption("width")),collapse=''))
+  
+  if (!silent) ptm <- proc.time()
+  
+  ret <- recursive_search(
+    ftmp = ftmp, FUN = FUN, grid = grid, MoreArgs = MoreArgs,
+    zoom = zoom, decay = decay, num = num, cores = cores
+  )
+  
+  if (!silent) {
+    cli::cli_alert_success(
+      "Grid search with {zoom} zoom-in layer{?s} and {num} point{?s} each produced {length(ret)} result{?s}."
+    )
   }
-
-  return(list(par=par, points=ret))
+  
+  par <- ftmp(FUN = FUN, grid = ret, MoreArgs = MoreArgs, num = 1, cores = cores)[[1]]
+  
+  if (!silent) {
+    cli::cli_text(
+      "The minimiser is believed to be in the neighbourhood of {par}."
+    )
+    
+    dt <- proc.time() - ptm
+    # Print timing in a stable one-line way
+    cli::cli_alert_info(
+      "Elapsed: {format(unname(dt['elapsed']), digits = 4)}s (user: {format(unname(dt['user.self']), digits = 4)}s, system: {format(unname(dt['sys.self']), digits = 4)}s)."
+    )
+    
+  }
+  
+  list(par = par, points = ret)
 }
 
 
 #' Check the time consumed by running the grid search algorithm with a zoom.
 #'
-#' This function checks the time consumed by running the grid search algorithm with a zoom as well as some other conditions.
+#' This function provides a quick runtime estimate for \code{\link{grid_search}} under the same settings.
+#' It performs two short pilot runs on smaller grids (with \code{zoom = 0}) and extrapolates the expected
+#' time for the full grid and the requested number of zoom-in layers.
 #'
-#' The running of this function takes only several seconds.
-#' So it is recommended to run this function before \code{\link{grid_search}} to check the approximate time consumed
-#' by \code{\link{grid_search}} by using exactly the same arguments.
+#' This is useful before launching a large run, for example on a compute server or under a batch system
+#' such as SLURM, where an approximate runtime is needed to request resources.
 #'
-#' This function is extremely useful when the user is going to run \code{\link{grid_search}} on some super-computing server
-#' and need to know approximately how long time it will take in order to specify the corresponding settings
-#' according to some batch system like SLURM for example.
-#'
-#' The boolean \code{silent} controls if there will be output in the console.
-#'
-#' For details, see \code{\link{grid_search}}.
+#' The boolean \code{silent} controls whether progress information is printed to the console.
+#' For details on the algorithm and the meaning of the arguments, see \code{\link{grid_search}}.
 #'
 #' @param FUN the target function to be minimized.
-#' @param grid an object of the class GRID from \code{\link{build_grid}}.
-#' @param MoreArgs a list of other arguments to \code{FUN}, see \code{\link{mapply}}.
-#' @param zoom number of (additional) rounds or layers of the zoom-in, 0 by default.
-#' @param decay a number in between 0 and 1 representing the decay rate of the grid sizes of the zoom.
-#' @param num number of points to return, i.e. the smallest \code{num} points, 1 by default the minimum.
-#' @param parallel a boolean indicating if the parallel computation is carried out, by default \code{FALSE}.
-#' @param cores The number of cores to use, i.e. at most how many child processes will be run simultaneously. For details, see \code{mcmapply} in \code{parallel} package.
-#' @param silent a boolean indicating if the information regarding the computation is printed.
+#' @param grid an object of class \code{GRID} created by \code{\link{build_grid}}.
+#' @param MoreArgs a named list of additional arguments to \code{FUN}, see \code{\link{mapply}}.
+#' @param zoom number of (additional) zoom-in layers, \code{0} by default.
+#' @param decay a number in \eqn{(0,1)} controlling the decay of subgrid sizes.
+#' @param num number of points to return at each grid search, \code{1} by default.
+#' @param parallel a logical; if \code{TRUE}, parallel computation is used.
+#' @param cores an integer specifying the requested number of workers when \code{parallel = TRUE}.
+#'   If \code{NULL}, the function uses \code{2} workers by default (subject to \code{future::availableCores()}).
+#'   The number of workers used is \code{min(cores, future::availableCores())}.
+#' @param silent a logical indicating whether progress information is printed.
 #'
-#' @return a number of the time in seconds.
+#' @return a numeric value giving the estimated runtime in seconds.
 #'
 #' @author Yukai Yang, \email{yukai.yang@@statistik.uu.se}
 #' @seealso \code{\link{build_grid}}, \code{\link{grid_search}}
@@ -320,102 +356,160 @@ grid_search <- function(FUN, grid, MoreArgs=NULL, zoom=0, decay=0.5, num=1, para
 #'
 #' @examples
 #' # Rastrigin function
-#' ndim = 2 # number of dimension
-#' nA = 10 # parameter A
-#' # vx in [-5.12, 5.12]
+#' ndim <- 2
+#' nA <- 10
+#' Rastrigin <- function(vx) nA * ndim + sum(vx * vx - nA * cos(2 * pi * vx))
 #'
-#' # minimizer = rep(0, ndim)
-#' # minimum = 0
-#' Rastrigin <- function(vx) return(nA * ndim + sum(vx*vx - nA * cos(2*pi*vx)))
+#' # Build a grid
+#' bin <- c(from = -5.12, to = 5.12, by = .5)
+#' grid <- build_grid(bin, bin)
 #'
-#' # a toy example
-#' # build the grid first
-#' bin = c(from=-5.12, to=5.12, by=.5)
-#' grid = build_grid(bin,bin)
-#' # so this is a relatively sparse grid
-#'
-#' # serial computation
-#' ret0 = grid_search(Rastrigin, grid, silent=FALSE)
-#' ret0$par
+#' # Estimate runtime (serial)
+#' t_est <- grid_search_check(Rastrigin, grid, silent = FALSE)
+#' t_est
 #'
 #' \donttest{
-#' # If we expand the grid to allow for more points
-#' bin = c(from=-5.12, to=5.12, by=.1)
-#' grid = build_grid(bin,bin)
+#' # Finer grid
+#' bin <- c(from = -5.12, to = 5.12, by = .1)
+#' grid <- build_grid(bin, bin)
 #'
-#' # run the check before the grid search
-#' ret1 = grid_search_check(Rastrigin, grid, silent=FALSE)
-#' ret1 = grid_search(Rastrigin, grid, silent=FALSE)
+#' # Estimate runtime, then run the search
+#' t_est <- grid_search_check(Rastrigin, grid, parallel = TRUE, cores = 2, silent = FALSE)
+#' ret   <- grid_search(Rastrigin, grid, parallel = TRUE, cores = 2, silent = FALSE)
 #' }
 #'
 #' @export
-grid_search_check <- function(FUN, grid, MoreArgs=NULL, zoom=0, decay=0.5, num=1, parallel=FALSE, cores=NULL, silent=TRUE){
-  if(class(grid)!="GRID")
-    stop(simpleError("The argument 'grid' is not an object of class 'GRID'."))
-
-  if(!silent){
-    cat0(paste0(rep("#",getOption("width")),collapse=''))
-    cat0("zoomgrid version ",vnum," ",packname)
-    cat0(paste0(rep("-",getOption("width")),collapse=''))
+grid_search_check <- function(FUN, grid, MoreArgs = NULL, zoom = 0, decay = 0.5, num = 1,
+                              parallel = FALSE, cores = NULL, silent = TRUE) {
+  
+  if (!inherits(grid, "GRID")) {
+    cli::cli_abort("The argument {.arg grid} is not an object of class {.cls GRID}.")
   }
-
-  if(is.null(cores)){
-    cores = parallel::detectCores()
-    if(is.na(cores)){
-      if(!silent) cat0("No cores are detected! Anyway, let's use one core...")
-      parallel=FALSE
+  
+  if (!silent) {
+    cli::cli_h1("zoomgrid version {vnum} {packname}")
+  }
+  
+  # Decide evaluation function and (optionally) configure futures once at the top level
+  if (parallel) {
+    
+    # Ensure optional parallel backend is available (future is in Suggests)
+    if (!requireNamespace("future", quietly = TRUE) ||
+        !requireNamespace("future.apply", quietly = TRUE)) {
+      cli::cli_abort(
+        "Parallel execution requires packages {.pkg future} and {.pkg future.apply}."
+      )
     }
+    
+    # Detect available cores once via future
+    n <- future::availableCores()
+    
+    # User-requested cores: if NULL, default to 2
+    m <- cores
+    if (is.null(m)) m <- 2L
+    
+    # Validate m
+    if (!is.numeric(m) || length(m) != 1L || is.na(m) || m < 1) {
+      m <- 1L
+    } else {
+      m <- as.integer(m)
+    }
+    
+    # Choose workers as min(m, n)
+    cores <- min(m, as.integer(n))
+    if (is.na(cores) || cores < 1L) cores <- 1L
+    
+    # Set multisession workers once and restore user's plan on exit
+    old_plan <- future::plan()
+    on.exit(future::plan(old_plan), add = TRUE)
+    future::plan(future::multisession, workers = cores)
+    
+    ftmp <- grid_peval
+    if (!silent) {
+      cli::cli_alert_info("Parallel computation runs with {cores} worker{?s}.")
+    }
+  } else {
+    
+    ftmp <- grid_seval
+    
+    # In serial mode, treat "cores" as 1 for the timing model
+    cores <- 1L
   }
-
-  if(parallel){
-    ftmp = grid_peval
-    if(!silent) cat0("Parallel computation runs with ",cores," cores.")
-  }else ftmp = grid_seval
-
-  set.seed(1)
-
+  
   # test 1
-  np = 2000**(1/grid$npar)
-  tmp = NULL
-  for(base in grid$grid_base){
-    tmp = paste(tmp, paste0("c(",paste(sort(sample(base,min(np,length(base)))),collapse=','),")"), sep=", ")
+  np <- 2000^(1 / grid$npar)
+  tmp <- NULL
+  for (base in grid$grid_base) {
+    tmp <- paste(tmp,
+                 paste0("c(", paste(sort(sample(base, min(np, length(base)))), collapse = ","), ")"),
+                 sep = ", ")
   }
-  tmp = substr(tmp, 3, nchar(tmp))
-  new_grid = eval(parse(text=paste0("build_grid(",tmp,")")))
-
-  ptm = proc.time()
-  ret = recursive_search(ftmp=ftmp,FUN=FUN,grid=new_grid,MoreArgs=MoreArgs,zoom=0,num=num,cores=cores)
-  ptm = proc.time() - ptm
-
-  tx1 = ptm[3]; nn1 = new_grid$size/cores
-
+  tmp <- substr(tmp, 3, nchar(tmp))
+  new_grid <- eval(parse(text = paste0("build_grid(", tmp, ")")))
+  
+  ptm <- proc.time()
+  ret <- recursive_search(ftmp = ftmp, FUN = FUN, grid = new_grid, MoreArgs = MoreArgs,
+                          zoom = 0, num = num, cores = cores)
+  ptm <- proc.time() - ptm
+  
+  tx1 <- ptm[3]
+  nn1 <- new_grid$size / cores
+  
   # test 2
-  np = 3000**(1/grid$npar)
-  tmp = NULL
-  for(base in grid$grid_base){
-    tmp = paste(tmp, paste0("c(",paste(sort(sample(base,min(np,length(base)))),collapse=','),")"), sep=", ")
+  np <- 3000^(1 / grid$npar)
+  tmp <- NULL
+  for (base in grid$grid_base) {
+    tmp <- paste(tmp,
+                 paste0("c(", paste(sort(sample(base, min(np, length(base)))), collapse = ","), ")"),
+                 sep = ", ")
   }
-  tmp = substr(tmp, 3, nchar(tmp))
-  new_grid = eval(parse(text=paste0("build_grid(",tmp,")")))
-
-  ptm = proc.time()
-  ret = recursive_search(ftmp=ftmp,FUN=FUN,grid=new_grid,MoreArgs=MoreArgs,zoom=0,num=num,cores=cores)
-  ptm = proc.time() - ptm
-
-  tx2 = ptm[3]; nn2 = new_grid$size/cores
-
-  # forecast the time
-
-  tmp = solve(matrix(c(nn1,nn2,1,1),2,2), c(tx1,tx2))
-  rr = tmp[1]; aa = tmp[2]
-  nn = grid$size/cores
-
-  tmp = 0:zoom
-  ret = sum( (nn*(decay**(tmp*grid$npar)) * rr + aa) * (num**tmp) )
-  if(!silent){
-    cat0("The expected time consumed by running the grid search is around ",ret," seconds.")
-    cat0(paste0(rep("#",getOption("width")),collapse=''))
+  tmp <- substr(tmp, 3, nchar(tmp))
+  new_grid <- eval(parse(text = paste0("build_grid(", tmp, ")")))
+  
+  ptm <- proc.time()
+  ret <- recursive_search(ftmp = ftmp, FUN = FUN, grid = new_grid, MoreArgs = MoreArgs,
+                          zoom = 0, num = num, cores = cores)
+  ptm <- proc.time() - ptm
+  
+  tx2 <- ptm[3]
+  nn2 <- new_grid$size / cores
+  
+  # forecast the time (robust)
+  y <- c(tx1, tx2)
+  x <- c(nn1, nn2)
+  
+  rr <- NA_real_
+  aa <- NA_real_
+  
+  if (isTRUE(all.equal(x[1], x[2]))) {
+    # Degenerate case: both timing runs used the same number of evaluations
+    # Estimate per-evaluation cost and treat intercept as zero (or very small)
+    if (x[1] <= 0) {
+      rr <- 0
+      aa <- max(y, 0)
+    } else {
+      rr <- max(mean(y) / x[1], 0)
+      aa <- 0
+    }
+  } else {
+    # Two-point line fit: time = rr * nn + aa
+    rr <- (y[2] - y[1]) / (x[2] - x[1])
+    aa <- y[1] - rr * x[1]
+    
+    # Guard against numerical oddities
+    if (!is.finite(rr) || rr < 0) rr <- max(mean(y) / max(mean(x), 1), 0)
+    if (!is.finite(aa) || aa < 0) aa <- 0
   }
-
-  return(ret)
+  nn <- grid$size / cores
+  
+  tmp <- 0:zoom
+  ret <- sum((nn * (decay^(tmp * grid$npar)) * rr + aa) * (num^tmp))
+  
+  if (!silent) {
+    cli::cli_alert_info(
+      "The expected time consumed by running the grid search is around {format(ret, digits = 6)} seconds."
+    )
+  }
+  
+  ret
 }
